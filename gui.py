@@ -1,3 +1,4 @@
+import threading
 import requests
 from tkinter import *
 from tkinter import ttk
@@ -9,7 +10,6 @@ from api import API_KEY1, API_KEY2
 # API keys for OpenWeatherMap and NOAA
 OPENWEATHER_API_KEY = API_KEY1
 NOAA_API_TOKEN = API_KEY2
-
 class WeatherWranglerApp:
     def __init__(self, root):
         self.root = root
@@ -26,7 +26,7 @@ class WeatherWranglerApp:
         Label(menu_frame, text="Welcome to the Weather Wrangler App!", font=("Arial", 16)).pack(pady=10)
 
         Button(menu_frame, text="1. Find Current Weather", command=self.current_weather).pack(pady=5)
-        Button(menu_frame, text="2. Weather Probabilities", command=self.weather_probabilities).pack(pady=5)
+        Button(menu_frame, text="2. Historical Weather Predictions", command=self.weather_probabilities).pack(pady=5)
 
     # ============= Current Weather (OpenWeatherMap API) ============= #
     def current_weather(self):
@@ -74,25 +74,53 @@ class WeatherWranglerApp:
         summary_window.geometry("400x300")
         Label(summary_window, text=summary, font=("Arial", 12)).pack(pady=10)
 
-    # ============= Weather Probabilities (NOAA API) ============= #
+    # ============= Historical Weather Predictions (NOAA API) ============= #
     def weather_probabilities(self):
         prob_frame = Toplevel(self.root)
-        prob_frame.title("Weather Probabilities")
+        prob_frame.title("Historical Weather Predictions")
         prob_frame.geometry("600x400")
 
         Label(prob_frame, text="Enter City Name:").pack(pady=5)
         self.region_entry = Entry(prob_frame)
         self.region_entry.pack(pady=5)
 
-        Label(prob_frame, text="Enter Weather Pattern (e.g., Snow, Tornado):").pack(pady=5)
-        self.pattern_entry = Entry(prob_frame)
-        self.pattern_entry.pack(pady=5)
-
-        Label(prob_frame, text="Enter Date (YYYY-MM-DD):").pack(pady=5)
+        Label(prob_frame, text="Enter Date (MM-DD):").pack(pady=5)
         self.date_entry = Entry(prob_frame)
         self.date_entry.pack(pady=5)
 
-        Button(prob_frame, text="Show Weather Probabilities", command=self.display_weather_probabilities).pack(pady=10)
+        Button(prob_frame, text="Show Historical Weather Predictions", command=self.start_thread).pack(pady=10)
+
+    def start_thread(self):
+        # Start a new thread for fetching NOAA data to avoid blocking the GUI
+        threading.Thread(target=self.display_weather_probabilities, daemon=True).start()
+
+    def display_weather_probabilities(self):
+        city = self.region_entry.get()
+        date = self.date_entry.get()
+
+        # Improved date parsing with error handling
+        try:
+            if len(date) != 5 or date[2] != '-':
+                raise ValueError("Date must be in MM-DD format")
+            month, day = map(int, date.split('-'))
+
+            if month < 1 or month > 12 or day < 1 or day > 31:
+                raise ValueError("Invalid month or day value.")
+        except ValueError as ve:
+            print(f"Error: {ve}")
+            return
+
+        # Lookup latitude and longitude for the given city
+        location = self.lookup_location_id(city)
+        if not location:
+            print("Error: Unable to find location for the given city. Please check the city name or try again.")
+            return
+
+        lat, lon = location
+
+        # Start a thread to fetch NOAA historical data
+        threading.Thread(target=self.fetch_and_process_historical_data, args=(lat, lon, city, month, day),
+                         daemon=True).start()
 
     def lookup_location_id(self, city):
         # Use OpenWeatherMap to get latitude and longitude of the city
@@ -103,98 +131,106 @@ class WeatherWranglerApp:
         lat = weather_data['coord']['lat']
         lon = weather_data['coord']['lon']
 
-        # Format the latitude and longitude for NOAA usage
         return lat, lon
 
-    def fetch_noaa_data(self, lat, lon, pattern, date):
+    def fetch_and_process_historical_data(self, lat, lon, city, month, day):
+        # Fetch NOAA historical data
+        data = self.fetch_noaa_historical_data(lat, lon, month, day)
+        if data:
+            self.process_historical_data(data, city, month, day)
+        else:
+            print("No data available or error fetching data.")
+
+    def fetch_noaa_historical_data(self, lat, lon, month, day):
         # NOAA API endpoint
         endpoint = "https://www.ncei.noaa.gov/cdo-web/api/v2/data"
         headers = {"token": NOAA_API_TOKEN}
 
-        # Map pattern to a NOAA datatypeid
-        datatype_mapping = {
-            "snow": "SNOW",
-            "tornado": "WT04",
-            "temperature": "TMAX",  # Example of temperature max (could add more mappings)
-            "rain": "PRCP",
-        }
+        # Retrieve data for multiple years (e.g., last 10 years)
+        start_year = 2014
+        end_year = 2023
+        results = []
 
-        datatypeid = datatype_mapping.get(pattern.lower())
-        if not datatypeid:
-            print("Error: Unsupported weather pattern. Please use 'snow', 'tornado', 'temperature', or 'rain'.")
-            return None
+        for year in range(start_year, end_year + 1):
+            startdate = f"{year}-{month:02d}-{day:02d}"
+            enddate = f"{year}-{month:02d}-{day:02d}"
 
-        params = {
-            "datasetid": "GHCND",  # Global Historical Climatology Network Daily
-            "datatypeid": datatypeid,  # Weather pattern (e.g., SNOW, WT04 for tornadoes)
-            "startdate": date,
-            "enddate": date,
-            "limit": 1000,  # Maximum results
-            "units": "metric",
-            "latitude": lat,
-            "longitude": lon,
-        }
+            params = {
+                "datasetid": "GHCND",  # Global Historical Climatology Network Daily
+                "datatypeid": "TMAX,TMIN,PRCP,SNOW",  # Collect relevant data types
+                "startdate": startdate,
+                "enddate": enddate,
+                "limit": 1000,  # Maximum results
+                "units": "metric",
+                "latitude": lat,
+                "longitude": lon,
+            }
 
-        response = requests.get(endpoint, headers=headers, params=params)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            print(f"Error: {response.status_code} - {response.text}")
-            return None
+            response = requests.get(endpoint, headers=headers, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                if "results" in data:
+                    results.extend(data["results"])
+            else:
+                print(f"Error: {response.status_code} - {response.text}")
 
-    def display_weather_probabilities(self):
-        city = self.region_entry.get()
-        pattern = self.pattern_entry.get()
-        date = self.date_entry.get()
+        return results
 
-        # Lookup latitude and longitude for the given city
-        location = self.lookup_location_id(city)
-        if not location:
-            print("Error: Unable to find location for the given city. Please check the city name or try again.")
+    def process_historical_data(self, data, city, month, day):
+        # Initialize counters and sums for each data type
+        total_records = len(data)
+        if total_records == 0:
+            print("No historical data available for the selected date.")
             return
 
-        lat, lon = location
+        avg_temp_max = avg_temp_min = total_precipitation = 0
+        count_temp_max = count_temp_min = count_precipitation = count_snow = 0
+        snow_days = 0
 
-        # Fetch NOAA data
-        data = self.fetch_noaa_data(lat, lon, pattern, date)
-        if data and "results" in data:
-            # Process the data as needed and display it
-            self.show_probability_map(data, city, pattern, date)
+        # Loop through the data to aggregate information
+        for record in data:
+            if record["datatype"] == "TMAX":
+                avg_temp_max += record["value"]
+                count_temp_max += 1
+            elif record["datatype"] == "TMIN":
+                avg_temp_min += record["value"]
+                count_temp_min += 1
+            elif record["datatype"] == "PRCP":
+                total_precipitation += record["value"]
+                count_precipitation += 1
+            elif record["datatype"] == "SNOW":
+                count_snow += 1
+                if record["value"] > 0:
+                    snow_days += 1
+
+        # Safely calculate averages if there is data available
+        if count_temp_max > 0:
+            avg_temp_max /= count_temp_max
+        if count_temp_min > 0:
+            avg_temp_min /= count_temp_min
+        if count_precipitation > 0:
+            avg_precipitation = total_precipitation / count_precipitation
         else:
-            print("No data available or error fetching data.")
+            avg_precipitation = 0
 
-    def show_probability_map(self, data, region, pattern, date):
-        # Simulate NOAA data for map visualization
-        locations = [
-            {"lat": 40.7128, "lon": -74.0060, "value": 50},  # Example: New York
-            {"lat": 34.0522, "lon": -118.2437, "value": 70},  # Example: Los Angeles
-            {"lat": 41.8781, "lon": -87.6298, "value": 30},  # Example: Chicago
-        ]
+        snow_probability = (snow_days / count_snow) * 100 if count_snow > 0 else 0
 
-        map_window = Toplevel(self.root)
-        map_window.title("Weather Probability Map")
-        map_window.geometry("800x600")
-
-        fig = plt.figure(figsize=(10, 8))
-        m = Basemap(projection="mill", llcrnrlat=20, urcrnrlat=50, llcrnrlon=-130, urcrnrlon=-60)
-
-        m.drawcoastlines()
-        m.drawcountries()
-        m.drawstates()
-
-        for loc in locations:
-            x, y = m(loc["lon"], loc["lat"])
-            m.scatter(x, y, s=loc["value"], color="red", alpha=0.7)
-
-        plt.title(f"Probability of {pattern} on {date} in {region}")
-        canvas = FigureCanvasTkAgg(fig, master=map_window)
-        canvas.draw()
-        canvas.get_tk_widget().pack()
-
-        Button(map_window, text="Close", command=map_window.destroy).pack(pady=10)
+        # Create prediction summary
+        prediction_summary = (
+            f"\nHistorical Weather Prediction for {city} on {month:02d}-{day:02d}:\n"
+            f"Average Maximum Temperature: {round((avg_temp_max * 9 / 5) + 32)}°F\n"
+            f"Average Minimum Temperature: {round((avg_temp_min * 9 / 5) + 32)}°F\n"
+            f"Average Precipitation: {avg_precipitation:.2f} mm\n"
+            f"Probability of Snow: {snow_probability:.2f}%"
+        )
+        # Use the main thread to show the weather summary in the GUI
+        self.root.after(0, lambda: self.show_weather_summary(prediction_summary))
 
 
 # Run App
-root = Tk()
-app = WeatherWranglerApp(root)
-root.mainloop()
+try:
+    root = Tk()
+    app = WeatherWranglerApp(root)
+    root.mainloop()
+except Exception as e:
+    print(f"An error occurred: {e}")
