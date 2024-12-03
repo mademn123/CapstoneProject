@@ -10,7 +10,6 @@ from api import API_KEY1, API_KEY2
 OPENWEATHER_API_KEY = API_KEY1
 NOAA_API_TOKEN = API_KEY2
 
-
 class WeatherWranglerApp:
     def __init__(self, root):
         self.root = root
@@ -81,7 +80,7 @@ class WeatherWranglerApp:
         prob_frame.title("Weather Probabilities")
         prob_frame.geometry("600x400")
 
-        Label(prob_frame, text="Select Region (City):").pack(pady=5)
+        Label(prob_frame, text="Enter City Name:").pack(pady=5)
         self.region_entry = Entry(prob_frame)
         self.region_entry.pack(pady=5)
 
@@ -95,18 +94,45 @@ class WeatherWranglerApp:
 
         Button(prob_frame, text="Show Weather Probabilities", command=self.display_weather_probabilities).pack(pady=10)
 
-    def fetch_noaa_data(self, region, pattern, date):
+    def lookup_location_id(self, city):
+        # Use OpenWeatherMap to get latitude and longitude of the city
+        weather_data = self.fetch_openweather_data(city)
+        if not weather_data:
+            return None
+
+        lat = weather_data['coord']['lat']
+        lon = weather_data['coord']['lon']
+
+        # Format the latitude and longitude for NOAA usage
+        return lat, lon
+
+    def fetch_noaa_data(self, lat, lon, pattern, date):
         # NOAA API endpoint
         endpoint = "https://www.ncei.noaa.gov/cdo-web/api/v2/data"
         headers = {"token": NOAA_API_TOKEN}
 
+        # Map pattern to a NOAA datatypeid
+        datatype_mapping = {
+            "snow": "SNOW",
+            "tornado": "WT04",
+            "temperature": "TMAX",  # Example of temperature max (could add more mappings)
+            "rain": "PRCP",
+        }
+
+        datatypeid = datatype_mapping.get(pattern.lower())
+        if not datatypeid:
+            print("Error: Unsupported weather pattern. Please use 'snow', 'tornado', 'temperature', or 'rain'.")
+            return None
+
         params = {
-            "datasetid": "GHCND",  # Global Historical Climatology Network
-            "datatypeid": pattern.lower(),  # Weather pattern (e.g., SNOW, TORNADO)
-            "locationid": region,  # Location ID or coordinates
+            "datasetid": "GHCND",  # Global Historical Climatology Network Daily
+            "datatypeid": datatypeid,  # Weather pattern (e.g., SNOW, WT04 for tornadoes)
             "startdate": date,
             "enddate": date,
             "limit": 1000,  # Maximum results
+            "units": "metric",
+            "latitude": lat,
+            "longitude": lon,
         }
 
         response = requests.get(endpoint, headers=headers, params=params)
@@ -117,13 +143,23 @@ class WeatherWranglerApp:
             return None
 
     def display_weather_probabilities(self):
-        region = self.region_entry.get()
+        city = self.region_entry.get()
         pattern = self.pattern_entry.get()
         date = self.date_entry.get()
 
-        data = self.fetch_noaa_data(region, pattern, date)
-        if data:
-            self.show_probability_map(data, region, pattern, date)
+        # Lookup latitude and longitude for the given city
+        location = self.lookup_location_id(city)
+        if not location:
+            print("Error: Unable to find location for the given city. Please check the city name or try again.")
+            return
+
+        lat, lon = location
+
+        # Fetch NOAA data
+        data = self.fetch_noaa_data(lat, lon, pattern, date)
+        if data and "results" in data:
+            # Process the data as needed and display it
+            self.show_probability_map(data, city, pattern, date)
         else:
             print("No data available or error fetching data.")
 
