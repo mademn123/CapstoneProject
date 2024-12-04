@@ -30,7 +30,7 @@ class WeatherWranglerApp:
         self.canvas.pack(fill="both", expand=True)
 
         # Load and add the cloud image with Pillow
-        cloud_image = Image.open(r"C:\Users\mvvsg\PycharmProjects\CapstoneProject\cloud.png")
+        cloud_image = Image.open(r"C:\Users\mvvsg\PycharmProjects\CapstoneProject\newcloud.png")
         self.cloud_image = ImageTk.PhotoImage(cloud_image)
         self.cloud = self.canvas.create_image(-100, 50, image=self.cloud_image, anchor="nw")
 
