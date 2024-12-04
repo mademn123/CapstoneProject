@@ -252,12 +252,22 @@ class WeatherWranglerApp:
         self.city_entry_pattern = Entry(pattern_frame)
         self.city_entry_pattern.pack(pady=5)
 
-        Button(pattern_frame, text="Show Weather Pattern", command=self.fetch_weather_pattern_data).pack(pady=20)
+        Button(pattern_frame, text="Show Weather Pattern", command=self.start_pattern_thread).pack(pady=20)
+
+    def start_pattern_thread(self):
+        # Start a new thread for fetching NOAA data to avoid blocking the GUI
+        threading.Thread(target=self.fetch_weather_pattern_data, daemon=True).start()
 
     def fetch_weather_pattern_data(self):
-        pattern = self.pattern_entry.get()
-        date = self.date_entry_pattern.get()
-        city = self.city_entry_pattern.get()
+        pattern = self.pattern_entry.get().strip().upper()
+        date = self.date_entry_pattern.get().strip()
+        city = self.city_entry_pattern.get().strip()
+
+        # Validate the weather pattern type
+        valid_patterns = ["TMAX", "TMIN", "PRCP", "SNOW"]
+        if pattern not in valid_patterns:
+            messagebox.showerror("Invalid Pattern", f"Please enter one of the following patterns: {', '.join(valid_patterns)}")
+            return
 
         # Input validation for date
         try:
@@ -268,7 +278,7 @@ class WeatherWranglerApp:
             if month < 1 or month > 12 or day < 1 or day > 31:
                 raise ValueError("Invalid month or day value.")
         except ValueError as ve:
-            print(f"Error: {ve}")
+            messagebox.showerror("Invalid Date", f"Error: {ve}")
             return
 
         # Fetch data from NOAA API for this city and date
@@ -276,34 +286,51 @@ class WeatherWranglerApp:
         if location:
             lat, lon = location
             data = self.fetch_noaa_historical_data(lat, lon, month, day)
-            self.plot_weather_pattern(data, pattern)
+            if data:
+                self.root.after(0, lambda: self.plot_weather_pattern(data, pattern))
+            else:
+                messagebox.showerror("Data Error", "No data available for the selected date and location.")
         else:
-            print("Error: Unable to find city location.")
+            messagebox.showerror("Location Error", "Unable to find city location. Please check the city name.")
 
     def plot_weather_pattern(self, data, pattern):
-        def plot_weather_pattern(self, data, pattern):
-            if data:
-                print(data)  # Debugging line to check the structure of the data
+        # Check if data is available
+        if not data:
+            messagebox.showerror("Data Error", "No data available for the selected pattern.")
+            return
 
-                # Now attempt to access the data assuming it's a list of dictionaries
-                try:
-                    locations = [record['station']['name'] for record in data]
-                    values = [record['value'] for record in data if pattern in record['datatype']]
-                except TypeError:
-                    print("Error: 'data' is not in the expected format. It might be a string or malformed data.")
-                    return
+        # Filter data for the selected pattern
+        values = [record["value"] for record in data if record["datatype"] == pattern]
+        dates = [record["date"] for record in data if record["datatype"] == pattern]
 
+        # Ensure there is enough data to plot
+        if not values or not dates:
+            messagebox.showerror("Data Error", f"No records found for pattern '{pattern}'.")
+            return
+
+        # Convert dates to a readable format
+        readable_dates = [date.split("T")[0] for date in dates]
+
+        # Plotting
+        try:
             fig, ax = plt.subplots()
-            ax.scatter(locations, values)
-            ax.set_title(f"{pattern.capitalize()} Pattern")
-            ax.set_xlabel("Station Location")
-            ax.set_ylabel("Weather Value")
+            ax.plot(readable_dates, values, marker="o", linestyle="-")
+            ax.set_title(f"{pattern.capitalize()} Pattern for Selected Date")
+            ax.set_xlabel("Date")
+            ax.set_ylabel("Value")
             ax.grid(True)
 
-            canvas = FigureCanvasTkAgg(fig, master=self.root)
-            canvas.get_tk_widget().pack(pady=20)
-            canvas.draw()
+            # Display plot in the GUI
+            plot_window = Toplevel(self.root)
+            plot_window.title("Weather Pattern Plot")
+            plot_window.geometry("800x600")
 
+            canvas = FigureCanvasTkAgg(fig, master=plot_window)
+            canvas.get_tk_widget().pack()
+            canvas.draw()
+        except Exception as e:
+            print(f"Error while plotting data: {e}")
+            messagebox.showerror("Plotting Error", f"An error occurred while plotting: {e}")
 
 # Run App
 try:
