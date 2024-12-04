@@ -3,10 +3,8 @@ import requests
 from tkinter import *
 from tkinter import ttk
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from api import API_KEY1, API_KEY2
-from PIL import Image, ImageTk
 
 # API keys for OpenWeatherMap and NOAA
 OPENWEATHER_API_KEY = API_KEY1
@@ -22,52 +20,18 @@ class WeatherWranglerApp:
         self.create_main_menu()
 
     def create_main_menu(self):
-        menu_frame = Frame(self.root, bg="#87CEEB", bd=5, relief="solid")
-        menu_frame.pack(pady=20, padx=20, fill="both", expand=True)
+        menu_frame = Frame(self.root)
+        menu_frame.pack(pady=20)
 
-        # Create Canvas
-        self.canvas = Canvas(menu_frame, width=800, height=300, bg="#87CEEB", bd=0, highlightthickness=0)
-        self.canvas.pack(fill="both", expand=True)
+        Label(menu_frame, text="Welcome to the Weather Wrangler App!", font=("Arial", 16)).pack(pady=10)
 
-        # Load and add the cloud image with Pillow
-        cloud_image = Image.open(r"C:\Users\mvvsg\PycharmProjects\CapstoneProject\cloud.png")
-        self.cloud_image = ImageTk.PhotoImage(cloud_image)
-        self.cloud = self.canvas.create_image(-100, 50, image=self.cloud_image, anchor="nw")
-
-        # Animate the cloud
-        def animate_cloud():
-            current_x = self.canvas.coords(self.cloud)[0]
-            if current_x < 800:
-                new_x = current_x + 2
-                self.canvas.coords(self.cloud, new_x, 50)
-            else:
-                self.canvas.coords(self.cloud, -100, 50)
-            self.canvas.after(20, animate_cloud)
-
-        animate_cloud()
-
-        Label(menu_frame, text="Welcome to the Weather Wrangler App!", font=("Arial", 16, 'bold'),
-              bg="#87CEEB").pack(pady=10)
-
-        def create_button(text, command):
-            button = Button(menu_frame, text=text, command=command, font=("Arial", 12), width=30, height=2,
-                            bg="#4CAF50", fg="white", relief="raised", bd=3, activebackground="#45a049",
-                            activeforeground="white")
-            button.pack(pady=10)
-
-        def current_weather():
-            print("Current weather selected")
-
-        def weather_probabilities():
-            print("Historical weather predictions selected")
-
-        create_button("1. Find Current Weather", self.current_weather)
-        create_button("2. Historical Weather Predictions", self.weather_probabilities)
-
+        Button(menu_frame, text="1. Find Current Weather", command=self.current_weather).pack(pady=5)
+        Button(menu_frame, text="2. Historical Weather Predictions", command=self.weather_probabilities).pack(pady=5)
+        Button(menu_frame, text="3. Weather Patterns Graph", command=self.weather_patterns_graph).pack(pady=5)
 
     # ============= Current Weather (OpenWeatherMap API) ============= #
     def current_weather(self):
-        weather_frame = Toplevel(self.root)
+        weather_frame = Toplevel(self.root, bg="lightblue")
         weather_frame.title("Current Weather")
         weather_frame.geometry("500x400")
 
@@ -88,7 +52,7 @@ class WeatherWranglerApp:
             weather_summary = (
                 f"\nWeather Summary:\n"
                 f"City: {city_name}\n"
-                f"Temperature: {round((temperature * 9 / 5) + 32)}°F\n"
+                f"Temperature: {round((temperature * 9 / 5) + 32)}\u00b0F\n"
                 f"Description: {description.capitalize()}\n"
                 f"Humidity: {humidity}%"
             )
@@ -113,7 +77,7 @@ class WeatherWranglerApp:
 
     # ============= Historical Weather Predictions (NOAA API) ============= #
     def weather_probabilities(self):
-        prob_frame = Toplevel(self.root)
+        prob_frame = Toplevel(self.root, bg="#000080")
         prob_frame.title("Historical Weather Predictions")
         prob_frame.geometry("600x400")
 
@@ -147,20 +111,15 @@ class WeatherWranglerApp:
             print(f"Error: {ve}")
             return
 
-        # Lookup latitude and longitude for the given city
         location = self.lookup_location_id(city)
         if not location:
             print("Error: Unable to find location for the given city. Please check the city name or try again.")
             return
 
         lat, lon = location
-
-        # Start a thread to fetch NOAA historical data
-        threading.Thread(target=self.fetch_and_process_historical_data, args=(lat, lon, city, month, day),
-                         daemon=True).start()
+        threading.Thread(target=self.fetch_and_process_historical_data, args=(lat, lon, city, month, day), daemon=True).start()
 
     def lookup_location_id(self, city):
-        # Use OpenWeatherMap to get latitude and longitude of the city
         weather_data = self.fetch_openweather_data(city)
         if not weather_data:
             return None
@@ -171,7 +130,6 @@ class WeatherWranglerApp:
         return lat, lon
 
     def fetch_and_process_historical_data(self, lat, lon, city, month, day):
-        # Fetch NOAA historical data
         data = self.fetch_noaa_historical_data(lat, lon, month, day)
         if data:
             self.process_historical_data(data, city, month, day)
@@ -179,11 +137,9 @@ class WeatherWranglerApp:
             print("No data available or error fetching data.")
 
     def fetch_noaa_historical_data(self, lat, lon, month, day):
-        # NOAA API endpoint
         endpoint = "https://www.ncei.noaa.gov/cdo-web/api/v2/data"
         headers = {"token": NOAA_API_TOKEN}
 
-        # Retrieve data for multiple years (e.g., last 10 years)
         start_year = 2014
         end_year = 2023
         results = []
@@ -193,11 +149,11 @@ class WeatherWranglerApp:
             enddate = f"{year}-{month:02d}-{day:02d}"
 
             params = {
-                "datasetid": "GHCND",  # Global Historical Climatology Network Daily
-                "datatypeid": "TMAX,TMIN,PRCP,SNOW",  # Collect relevant data types
+                "datasetid": "GHCND",
+                "datatypeid": "TMAX,TMIN,PRCP,SNOW",
                 "startdate": startdate,
                 "enddate": enddate,
-                "limit": 1000,  # Maximum results
+                "limit": 1000,
                 "units": "metric",
                 "latitude": lat,
                 "longitude": lon,
@@ -214,17 +170,14 @@ class WeatherWranglerApp:
         return results
 
     def process_historical_data(self, data, city, month, day):
-        # Initialize counters and sums for each data type
         total_records = len(data)
         if total_records == 0:
             print("No historical data available for the selected date.")
             return
 
         avg_temp_max = avg_temp_min = total_precipitation = 0
-        count_temp_max = count_temp_min = count_precipitation = count_snow = 0
-        snow_days = 0
+        count_temp_max = count_temp_min = count_precipitation = 0
 
-        # Loop through the data to aggregate information
         for record in data:
             if record["datatype"] == "TMAX":
                 avg_temp_max += record["value"]
@@ -235,12 +188,7 @@ class WeatherWranglerApp:
             elif record["datatype"] == "PRCP":
                 total_precipitation += record["value"]
                 count_precipitation += 1
-            elif record["datatype"] == "SNOW":
-                count_snow += 1
-                if record["value"] > 0:
-                    snow_days += 1
 
-        # Safely calculate averages if there is data available
         if count_temp_max > 0:
             avg_temp_max /= count_temp_max
         if count_temp_min > 0:
@@ -250,24 +198,6 @@ class WeatherWranglerApp:
         else:
             avg_precipitation = 0
 
-        snow_probability = (snow_days / count_snow) * 100 if count_snow > 0 else 0
-
-        # Create prediction summary
         prediction_summary = (
             f"\nHistorical Weather Prediction for {city} on {month:02d}-{day:02d}:\n"
-            f"Average Maximum Temperature: {round((avg_temp_max * 9 / 5) + 32)}°F\n"
-            f"Average Minimum Temperature: {round((avg_temp_min * 9 / 5) + 32)}°F\n"
-            f"Average Precipitation: {avg_precipitation:.2f} mm\n"
-            f"Probability of Snow: {snow_probability:.2f}%"
-        )
-        # Use the main thread to show the weather summary in the GUI
-        self.root.after(0, lambda: self.show_weather_summary(prediction_summary))
-
-
-# Run App
-try:
-    root = Tk()
-    app = WeatherWranglerApp(root)
-    root.mainloop()
-except Exception as e:
-    print(f"An error occurred: {e}")
+            f"Average Maximum Temperature: {round((avg_temp_max * 9 / 5) + 32)}\u00b0
