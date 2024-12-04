@@ -6,10 +6,12 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from api import API_KEY1, API_KEY2
+from PIL import Image, ImageTk
 
 # API keys for OpenWeatherMap and NOAA
 OPENWEATHER_API_KEY = API_KEY1
 NOAA_API_TOKEN = API_KEY2
+
 class WeatherWranglerApp:
     def __init__(self, root):
         self.root = root
@@ -20,13 +22,48 @@ class WeatherWranglerApp:
         self.create_main_menu()
 
     def create_main_menu(self):
-        menu_frame = Frame(self.root)
-        menu_frame.pack(pady=20)
+        menu_frame = Frame(self.root, bg="#87CEEB", bd=5, relief="solid")
+        menu_frame.pack(pady=20, padx=20, fill="both", expand=True)
 
-        Label(menu_frame, text="Welcome to the Weather Wrangler App!", font=("Arial", 16)).pack(pady=10)
+        # Create Canvas
+        self.canvas = Canvas(menu_frame, width=800, height=300, bg="#87CEEB", bd=0, highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True)
 
-        Button(menu_frame, text="1. Find Current Weather", command=self.current_weather).pack(pady=5)
-        Button(menu_frame, text="2. Historical Weather Predictions", command=self.weather_probabilities).pack(pady=5)
+        # Load and add the cloud image with Pillow
+        cloud_image = Image.open(r"C:\Users\mvvsg\PycharmProjects\CapstoneProject\cloud.png")
+        self.cloud_image = ImageTk.PhotoImage(cloud_image)
+        self.cloud = self.canvas.create_image(-100, 50, image=self.cloud_image, anchor="nw")
+
+        # Animate the cloud
+        def animate_cloud():
+            current_x = self.canvas.coords(self.cloud)[0]
+            if current_x < 800:
+                new_x = current_x + 2
+                self.canvas.coords(self.cloud, new_x, 50)
+            else:
+                self.canvas.coords(self.cloud, -100, 50)
+            self.canvas.after(20, animate_cloud)
+
+        animate_cloud()
+
+        Label(menu_frame, text="Welcome to the Weather Wrangler App!", font=("Arial", 16, 'bold'),
+              bg="#87CEEB").pack(pady=10)
+
+        def create_button(text, command):
+            button = Button(menu_frame, text=text, command=command, font=("Arial", 12), width=30, height=2,
+                            bg="#4CAF50", fg="white", relief="raised", bd=3, activebackground="#45a049",
+                            activeforeground="white")
+            button.pack(pady=10)
+
+        def current_weather():
+            print("Current weather selected")
+
+        def weather_probabilities():
+            print("Historical weather predictions selected")
+
+        create_button("1. Find Current Weather", self.current_weather)
+        create_button("2. Historical Weather Predictions", self.weather_probabilities)
+
 
     # ============= Current Weather (OpenWeatherMap API) ============= #
     def current_weather(self):
