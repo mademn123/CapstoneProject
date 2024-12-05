@@ -66,6 +66,8 @@ class WeatherWranglerApp:
 
     # Button styling function
     def styled_button(self, parent, text, command):
+        '''Akhil worked on this function. The purpose of this function is to create a standard for the visual aesthetic 
+        of the button.'''
         button = Button(parent, text=text, command=command, font=("Arial", 12), width=30, height=2,
                         bg="#4CAF50",  # Green background for consistency
                         fg="white",    # White text for good contrast
@@ -277,7 +279,7 @@ class WeatherWranglerApp:
         return results
 
     def process_historical_data(self, data, city, month, day):
-        '''Nihitha created this function. The purpose of this function is to perform calculations on the data we fetched
+        '''Nihitha worked on this function. The purpose of this function is to perform calculations on the data we fetched
         from the API so that we can get the average of different temperatures/weather types so the user can see what the
         weather is approximately like in a city during that time of year.'''
         # Initialize counters and sums for each data type
@@ -359,13 +361,13 @@ class WeatherWranglerApp:
         self.styled_button(pattern_frame, "Show Weather Pattern", self.start_pattern_thread)
 
     def start_pattern_thread(self):
-        '''Angel created this function. This starts a thread so that the GUI won't stop responding due to the data
+        '''Angel worked on this function. This starts a thread so that the GUI won't stop responding due to the data
         being fetched from the API'''
         # Start a new thread for fetching NOAA data to avoid blocking the GUI
         threading.Thread(target=self.fetch_weather_pattern_data, daemon=True).start()
 
     def fetch_weather_pattern_data(self):
-        '''Angel created this function. The purpose of this function is to fetch and process the weather data obtained
+        '''Angel worked on this function. The purpose of this function is to fetch and process the weather data obtained
         from the NOAA API for the inputted city, date, and weather pattern. It ensures that all the information inputted
         by the user is valid'''
         date = self.date_entry_pattern.get().strip()
@@ -446,7 +448,7 @@ class WeatherWranglerApp:
             messagebox.showerror("Location Error", "Unable to find city location. Please check the city name.")
 
     def plot_weather_pattern(self, data, pattern):
-        '''Angel created this function. The purpose of this function is to plot the data for the user specified
+        '''Angel worked on this function. The purpose of this function is to plot the data for the user specified
         information.'''
         # Check if data is available
         if not data:
