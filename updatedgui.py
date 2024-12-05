@@ -1,7 +1,10 @@
 import threading
+from tkinter.ttk import Combobox
+
+import numpy as np
 import requests
 from tkinter import *
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -284,15 +287,22 @@ class WeatherWranglerApp:
         Label(summary_window, text=summary, font=("Arial", 12)).pack(pady=10)
 
     # ============= Weather Pattern Visualization ============= #
+
     def weather_pattern_visualization(self):
-        pattern_frame = Toplevel(self.root)
+        pattern_frame = Toplevel(self.root, bg="#39d7bf")
         pattern_frame.title("Weather Pattern Visualization")
         pattern_frame.geometry("600x500")
 
-        Label(pattern_frame, text="Enter Weather Pattern:").pack(pady=10)
-        self.pattern_entry = Entry(pattern_frame)
-        self.pattern_entry.pack(pady=5)
+        # Dropdown for weather pattern
+        Label(pattern_frame, text="Select Weather Pattern:").pack(pady=10)
 
+        # Only store the user-friendly names in the combobox
+        self.pattern_combobox = Combobox(pattern_frame, values=[
+            "Max Temperature", "Min Temperature", "Precipitation", "Snowfall", "Average Temperature"
+        ])
+        self.pattern_combobox.pack(pady=5)
+
+        # Date and City entries remain the same
         Label(pattern_frame, text="Enter Date (MM-DD):").pack(pady=10)
         self.date_entry_pattern = Entry(pattern_frame)
         self.date_entry_pattern.pack(pady=5)
@@ -308,14 +318,29 @@ class WeatherWranglerApp:
         threading.Thread(target=self.fetch_weather_pattern_data, daemon=True).start()
 
     def fetch_weather_pattern_data(self):
-        pattern = self.pattern_entry.get().strip().upper()
         date = self.date_entry_pattern.get().strip()
         city = self.city_entry_pattern.get().strip()
 
-        # Validate the weather pattern type
-        valid_patterns = ["TMAX", "TMIN", "PRCP", "SNOW"]
-        if pattern not in valid_patterns:
-            messagebox.showerror("Invalid Pattern", f"Please enter one of the following patterns: {', '.join(valid_patterns)}")
+        # Get the selected pattern name from the combobox
+        selected_pattern_name = self.pattern_combobox.get().strip()
+
+        # Map user-friendly names to their respective NOAA pattern codes
+        pattern_map = {
+            "Max Temperature": "TMAX",
+            "Min Temperature": "TMIN",
+            "Precipitation": "PRCP",
+            "Snowfall": "SNOW",
+            "Average Temperature": "TAVG"
+        }
+
+        # Get the corresponding pattern code based on the selected name
+        selected_pattern_code = pattern_map.get(selected_pattern_name)
+
+        # Debugging: Print the selected pattern code
+        print(f"Selected pattern from combobox (code): {selected_pattern_code}")
+
+        if not selected_pattern_code:
+            messagebox.showerror("Invalid Pattern", f"Pattern '{selected_pattern_name}' is not available.")
             return
 
         # Input validation for date
@@ -336,11 +361,79 @@ class WeatherWranglerApp:
             lat, lon = location
             data = self.fetch_noaa_historical_data(lat, lon, month, day)
             if data:
-                self.root.after(0, lambda: self.plot_weather_pattern(data, pattern))
+                # Get all unique data types from the fetched data
+                available_types = list(set(record["datatype"] for record in data))
+
+                # If the specific pattern is not found, show available types
+                if selected_pattern_code not in available_types:
+                    available_types_str = ", ".join(sorted(available_types))
+
+                    # Create a popup to inform the user about available data types
+                    pattern_window = Toplevel(self.root)
+                    pattern_window.title("Available Weather Data Types")
+                    pattern_window.geometry("400x300")
+
+                    label = Label(pattern_window,
+                                  text=f"'{selected_pattern_name}' not found.\n\nAvailable Data Types:\n{available_types_str}",
+                                  justify=LEFT,
+                                  wraplength=350
+                                  )
+                    label.pack(pady=20)
+
+                    # Create a listbox to show available types
+                    listbox = Listbox(pattern_window, width=50)
+                    for data_type in sorted(available_types):
+                        listbox.insert(END, data_type)
+                    listbox.pack(pady=10)
+
+                    # Add a close button
+                    Button(pattern_window, text="Close", command=pattern_window.destroy).pack(pady=10)
+
+                    return
+
+                self.root.after(0, lambda: self.plot_weather_pattern(data, selected_pattern_code))
             else:
                 messagebox.showerror("Data Error", "No data available for the selected date and location.")
         else:
             messagebox.showerror("Location Error", "Unable to find city location. Please check the city name.")
+
+    def fetch_noaa_historical_data(self, lat, lon, month, day):
+        # NOAA API endpoint
+        endpoint = "https://www.ncei.noaa.gov/cdo-web/api/v2/data"
+        headers = {"token": NOAA_API_TOKEN}
+
+        # Retrieve data for multiple years (e.g., last 10 years)
+        start_year = 2014
+        end_year = 2023
+        results = []
+
+        # Add ALL available data types
+        data_types = "TMAX,TMIN,PRCP,SNOW,AWND,WSF5,TOBS,WDF5,WESD,TAVG"
+
+        for year in range(start_year, end_year + 1):
+            startdate = f"{year}-{month:02d}-{day:02d}"
+            enddate = f"{year}-{month:02d}-{day:02d}"
+
+            params = {
+                "datasetid": "GHCND",  # Global Historical Climatology Network Daily
+                "datatypeid": data_types,  # Collect all available data types
+                "startdate": startdate,
+                "enddate": enddate,
+                "limit": 1000,  # Maximum results
+                "units": "metric",
+                "latitude": lat,
+                "longitude": lon,
+            }
+
+            response = requests.get(endpoint, headers=headers, params=params)
+            if response.status_code == 200:
+                data = response.json()
+                if "results" in data:
+                    results.extend(data["results"])
+            else:
+                print(f"Error: {response.status_code} - {response.text}")
+
+        return results
 
     def plot_weather_pattern(self, data, pattern):
         # Check if data is available
@@ -348,38 +441,110 @@ class WeatherWranglerApp:
             messagebox.showerror("Data Error", "No data available for the selected pattern.")
             return
 
+        # Get unique data types from the NOAA dataset
+        available_data_types = set(record["datatype"] for record in data)
+
+        # If the specified pattern is not in the dataset, show available types
+        if pattern not in available_data_types:
+            available_types_str = ", ".join(sorted(available_data_types))
+            messagebox.showerror("Invalid Pattern",
+                                 f"Pattern '{pattern}' not found. Available data types are: {available_types_str}")
+            return
+
         # Filter data for the selected pattern
-        values = [record["value"] for record in data if record["datatype"] == pattern]
-        dates = [record["date"] for record in data if record["datatype"] == pattern]
+        pattern_data = [record for record in data if record["datatype"] == pattern]
 
         # Ensure there is enough data to plot
-        if not values or not dates:
+        if not pattern_data:
             messagebox.showerror("Data Error", f"No records found for pattern '{pattern}'.")
             return
 
-        # Convert dates to a readable format
-        readable_dates = [date.split("T")[0] for date in dates]
+        # Convert dates and improve data handling
+        import datetime
+        import numpy as np
 
-        # Plotting
+        # Group values by year
+        year_values = {}
+        for record in pattern_data:
+            date = datetime.datetime.fromisoformat(record["date"].replace('Z', '+00:00'))
+            year = date.year
+            if year not in year_values:
+                year_values[year] = []
+            year_values[year].append(record["value"])
+
+        # Prepare data for plotting
+        years = sorted(year_values.keys())
+        avg_values = [np.mean(year_values[year]) for year in years]
+
+        # Convert to Fahrenheit if the pattern is a temperature
+        if pattern in ["TMAX", "TMIN", "TAVG"]:
+            avg_values = [((value * 9 / 5) + 32) for value in avg_values]  # Convert Celsius to Fahrenheit
+
+        # Plotting with improved data handling
         try:
-            fig, ax = plt.subplots()
-            ax.plot(readable_dates, values, marker="o", linestyle="-")
-            ax.set_title(f"{pattern.capitalize()} Pattern for Selected Date")
-            ax.set_xlabel("Date")
-            ax.set_ylabel("Value")
-            ax.grid(True)
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            # Plot average values for each year
+            ax.plot(years, avg_values, marker="o", linestyle="-", color='blue')
+
+            # Set x-axis ticks to be the years
+            ax.set_xticks(years)
+            ax.set_xticklabels(years, rotation=45)
+
+            # Set title with the weather pattern and city
+            city = self.city_entry_pattern.get().strip()
+
+
+            # Dynamically set y-axis label based on pattern
+            pattern_labels = {
+                "TMAX": "Maximum Temperature (°F)",
+                "TMIN": "Minimum Temperature (°F)",
+                "PRCP": "Precipitation (mm)",
+                "SNOW": "Snowfall (mm)",
+                "TAVG": "Average Temperature (°F)",
+            }
+            ax.set_title(f"{pattern_labels.get(pattern)} in {city.capitalize()}", fontsize=15)
+            ax.set_xlabel("Year", fontsize=12)
+
+
+            ax.set_xlabel("Year", fontsize=12)
+            ax.set_ylabel(pattern_labels.get(pattern, "Value"), fontsize=12)
+
+            ax.grid(True, linestyle='--', alpha=0.7)
+
+            # Add text annotation with specific date
+            if pattern_data:
+                first_record_date = datetime.datetime.fromisoformat(pattern_data[0]["date"].replace('Z', '+00:00'))
+                plt.text(0.05, 0.95, f"Data for {first_record_date.month:02d}-{first_record_date.day:02d}",
+                         transform=ax.transAxes, verticalalignment='top')
+
+            # Tight layout to prevent cutting off labels
+            plt.tight_layout()
 
             # Display plot in the GUI
             plot_window = Toplevel(self.root)
-            plot_window.title("Weather Pattern Plot")
+            plot_window.title(f"{pattern} Weather Pattern Plot")
             plot_window.geometry("800x600")
 
             canvas = FigureCanvasTkAgg(fig, master=plot_window)
-            canvas.get_tk_widget().pack()
+            canvas.get_tk_widget().pack(fill=BOTH, expand=True)
             canvas.draw()
+
         except Exception as e:
             print(f"Error while plotting data: {e}")
             messagebox.showerror("Plotting Error", f"An error occurred while plotting: {e}")
+
+    def create_main_menu(self):
+        menu_frame = Frame(self.root)
+        menu_frame.pack(pady=20)
+
+        Label(menu_frame, text="Welcome to the Weather Wrangler App!", font=("Arial", 16)).pack(pady=10)
+
+        Button(menu_frame, text="1. Find Current Weather", command=self.current_weather).pack(pady=5)
+        Button(menu_frame, text="2. Historical Weather Predictions", command=self.weather_probabilities).pack(pady=5)
+        Button(menu_frame, text="3. Weather Pattern Visualization", command=self.weather_pattern_visualization).pack(
+            pady=5)
+
 
 # Run App
 try:
