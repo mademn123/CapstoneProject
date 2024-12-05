@@ -1,12 +1,15 @@
 import threading
+from tkinter.ttk import Combobox
+import numpy as np
 import requests
 from tkinter import *
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from api import API_KEY1, API_KEY2
 from PIL import Image, ImageTk
+from tkinter import Toplevel, Label, Canvas, Frame, Scrollbar, Button
 
 # API keys for OpenWeatherMap and NOAA
 OPENWEATHER_API_KEY = API_KEY1
@@ -23,10 +26,10 @@ class WeatherWranglerApp:
 
     def create_main_menu(self):
         menu_frame = Frame(self.root, bg="#87CEEB", bd=5, relief="solid")
-        menu_frame.pack(pady=20, padx=20, fill="both", expand=True)
+        menu_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
         # Create Canvas
-        self.canvas = Canvas(menu_frame, width=800, height=300, bg="#87CEEB", bd=0, highlightthickness=0)
+        self.canvas = Canvas(menu_frame, width=800, height=200, bg="#87CEEB", bd=0, highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
 
         # Load and add the cloud image with Pillow
@@ -46,36 +49,37 @@ class WeatherWranglerApp:
 
         animate_cloud()
 
+        # Adjust the vertical padding for the label to move everything up
         Label(menu_frame, text="Welcome to the Weather Wrangler App!", font=("Arial", 16, 'bold'),
-              bg="#87CEEB").pack(pady=10)
+              bg="#87CEEB").pack(pady=5)
 
-        def create_button(text, command):
-            button = Button(menu_frame, text=text, command=command, font=("Arial", 12), width=30, height=2,
-                            bg="#4CAF50", fg="white", relief="raised", bd=3, activebackground="#45a049",
-                            activeforeground="white")
-            button.pack(pady=10)
+        # Create buttons using the new styled_button function
+        self.styled_button(menu_frame, "Find Current Weather", self.current_weather)
+        self.styled_button(menu_frame, "Historical Predictions", self.weather_probabilities)
+        self.styled_button(menu_frame, "Weather Visualization", self.weather_pattern_visualization)
 
-        def current_weather():
-            print("Current weather selected")
-
-        def weather_probabilities():
-            print("Historical weather predictions selected")
-
-        create_button("1. Find Current Weather", self.current_weather)
-        create_button("2. Historical Weather Predictions", self.weather_probabilities)
-
+    # Button styling function
+    def styled_button(self, parent, text, command):
+        button = Button(parent, text=text, command=command, font=("Arial", 12), width=30, height=2,
+                        bg="#4CAF50",  # Changed to the same shade of green as the main menu for consistency
+                        fg="white",    # White text for good contrast
+                        relief="raised", bd=3,
+                        activebackground="#45A049",  # Slightly darker green when pressed
+                        activeforeground="white"  # White text color when the button is pressed
+                        )
+        button.pack(pady=5)
 
     # ============= Current Weather (OpenWeatherMap API) ============= #
     def current_weather(self):
-        weather_frame = Toplevel(self.root)
+        weather_frame = Toplevel(self.root, bg="lightblue")
         weather_frame.title("Current Weather")
         weather_frame.geometry("500x400")
 
-        Label(weather_frame, text="Enter City Name:").pack(pady=10)
-        self.city_entry = Entry(weather_frame)
+        Label(weather_frame, text="Enter City Name:", font=("Arial", 12, "bold"), bg="lightblue").pack(pady=10)
+        self.city_entry = Entry(weather_frame, font=("Arial", 12))
         self.city_entry.pack(pady=5)
 
-        Button(weather_frame, text="Get Weather", command=self.display_weather).pack(pady=10)
+        self.styled_button(weather_frame, "Get Weather", self.display_weather)
 
     def display_weather(self):
         city = self.city_entry.get()
@@ -106,163 +110,98 @@ class WeatherWranglerApp:
             return None
 
     def show_weather_summary(self, summary):
+        # Create the new window
         summary_window = Toplevel(self.root)
         summary_window.title("Weather Summary")
-        summary_window.geometry("400x300")
-        Label(summary_window, text=summary, font=("Arial", 12)).pack(pady=10)
+        summary_window.geometry("500x400")
+
+        # Set the window background
+        summary_window.configure(bg="#0047AB")  # Royal blue background
+
+        # Add a title label, centered
+        title_label = Label(
+            summary_window,
+            text="Weather Summary",
+            font=("Arial", 16, "bold"),
+            bg="#0047AB",
+            fg="#FFD700"
+        )
+        title_label.pack(pady=20)
+
+        # Create a frame to contain the summary and button, ensuring it's centered
+        content_frame = Frame(summary_window, bg="#0047AB")
+        content_frame.pack(fill="both", expand=True)
+
+        # Add the summary text, centered
+        summary_label = Label(
+            content_frame,
+            text=summary,
+            font=("Arial", 12),
+            bg="#0047AB",
+            fg="#FFD700",
+            wraplength=450,
+            justify="center"
+        )
+        summary_label.pack(pady=10)
+
+        # Add the close button, centered below the summary data
+        self.styled_button(content_frame, "Close", summary_window.destroy)
 
     # ============= Historical Weather Predictions (NOAA API) ============= #
     def weather_probabilities(self):
-        prob_frame = Toplevel(self.root)
+        prob_frame = Toplevel(self.root,  bg="#000080")
         prob_frame.title("Historical Weather Predictions")
         prob_frame.geometry("600x400")
 
-        Label(prob_frame, text="Enter City Name:").pack(pady=5)
-        self.region_entry = Entry(prob_frame)
+        Label(prob_frame, text="Enter City Name:", font=("Arial", 12, "bold"), bg="#000080", fg="white").pack(pady=5)
+        self.region_entry = Entry(prob_frame, font=("Arial", 12))
         self.region_entry.pack(pady=5)
 
-        Label(prob_frame, text="Enter Date (MM-DD):").pack(pady=5)
-        self.date_entry = Entry(prob_frame)
+        Label(prob_frame, text="Enter Date (MM-DD):", font=("Arial", 12, "bold"), bg="#000080", fg="white").pack(pady=5)
+        self.date_entry = Entry(prob_frame, font=("Arial", 12))
         self.date_entry.pack(pady=5)
 
-        Button(prob_frame, text="Show Historical Weather Predictions", command=self.start_thread).pack(pady=10)
+        self.styled_button(prob_frame, "Show Historical Weather Predictions", self.start_thread)
+
+    # ============= Weather Pattern Visualization ============= #
+    def weather_pattern_visualization(self):
+        pattern_frame = Toplevel(self.root, bg="#39d7bf")
+        pattern_frame.title("Weather Pattern Visualization")
+        pattern_frame.geometry("600x500")
+
+        # Dropdown for weather pattern
+        Label(pattern_frame, text="Select Weather Pattern:", font=("Arial", 12, "bold"), bg="#39d7bf").pack(pady=10)
+
+        # Only store the user-friendly names in the combobox
+        self.pattern_combobox = Combobox(pattern_frame, values=[
+            "Max Temperature", "Min Temperature", "Precipitation", "Snowfall", "Average Temperature"
+        ], font=("Arial", 12))
+        self.pattern_combobox.pack(pady=5)
+
+        # Date and City entries
+        Label(pattern_frame, text="Enter Date (MM-DD):", font=("Arial", 12, "bold"), bg="#39d7bf").pack(pady=10)
+        self.date_entry_pattern = Entry(pattern_frame, font=("Arial", 12))
+        self.date_entry_pattern.pack(pady=5)
+
+        Label(pattern_frame, text="Enter City:", font=("Arial", 12, "bold"), bg="#39d7bf").pack(pady=10)
+        self.city_entry_pattern = Entry(pattern_frame, font=("Arial", 12))
+        self.city_entry_pattern.pack(pady=5)
+
+        self.styled_button(pattern_frame, "Show Weather Pattern", self.start_pattern_thread)
 
     def start_thread(self):
         # Start a new thread for fetching NOAA data to avoid blocking the GUI
         threading.Thread(target=self.display_weather_probabilities, daemon=True).start()
 
-    def display_weather_probabilities(self):
-        city = self.region_entry.get()
-        date = self.date_entry.get()
+    def start_pattern_thread(self):
+        # Start a new thread for fetching NOAA data to avoid blocking the GUI
+        threading.Thread(target=self.fetch_weather_pattern_data, daemon=True).start()
 
-        # Improved date parsing with error handling
-        try:
-            if len(date) != 5 or date[2] != '-':
-                raise ValueError("Date must be in MM-DD format")
-            month, day = map(int, date.split('-'))
+    def fetch_weather_pattern_data(self):
+        # Implementation here for fetching and displaying weather patterns
+        pass
 
-            if month < 1 or month > 12 or day < 1 or day > 31:
-                raise ValueError("Invalid month or day value.")
-        except ValueError as ve:
-            print(f"Error: {ve}")
-            return
-
-        # Lookup latitude and longitude for the given city
-        location = self.lookup_location_id(city)
-        if not location:
-            print("Error: Unable to find location for the given city. Please check the city name or try again.")
-            return
-
-        lat, lon = location
-
-        # Start a thread to fetch NOAA historical data
-        threading.Thread(target=self.fetch_and_process_historical_data, args=(lat, lon, city, month, day),
-                         daemon=True).start()
-
-    def lookup_location_id(self, city):
-        # Use OpenWeatherMap to get latitude and longitude of the city
-        weather_data = self.fetch_openweather_data(city)
-        if not weather_data:
-            return None
-
-        lat = weather_data['coord']['lat']
-        lon = weather_data['coord']['lon']
-
-        return lat, lon
-
-    def fetch_and_process_historical_data(self, lat, lon, city, month, day):
-        # Fetch NOAA historical data
-        data = self.fetch_noaa_historical_data(lat, lon, month, day)
-        if data:
-            self.process_historical_data(data, city, month, day)
-        else:
-            print("No data available or error fetching data.")
-
-    def fetch_noaa_historical_data(self, lat, lon, month, day):
-        # NOAA API endpoint
-        endpoint = "https://www.ncei.noaa.gov/cdo-web/api/v2/data"
-        headers = {"token": NOAA_API_TOKEN}
-
-        # Retrieve data for multiple years (e.g., last 10 years)
-        start_year = 2014
-        end_year = 2023
-        results = []
-
-        for year in range(start_year, end_year + 1):
-            startdate = f"{year}-{month:02d}-{day:02d}"
-            enddate = f"{year}-{month:02d}-{day:02d}"
-
-            params = {
-                "datasetid": "GHCND",  # Global Historical Climatology Network Daily
-                "datatypeid": "TMAX,TMIN,PRCP,SNOW",  # Collect relevant data types
-                "startdate": startdate,
-                "enddate": enddate,
-                "limit": 1000,  # Maximum results
-                "units": "metric",
-                "latitude": lat,
-                "longitude": lon,
-            }
-
-            response = requests.get(endpoint, headers=headers, params=params)
-            if response.status_code == 200:
-                data = response.json()
-                if "results" in data:
-                    results.extend(data["results"])
-            else:
-                print(f"Error: {response.status_code} - {response.text}")
-
-        return results
-
-    def process_historical_data(self, data, city, month, day):
-        # Initialize counters and sums for each data type
-        total_records = len(data)
-        if total_records == 0:
-            print("No historical data available for the selected date.")
-            return
-
-        avg_temp_max = avg_temp_min = total_precipitation = 0
-        count_temp_max = count_temp_min = count_precipitation = count_snow = 0
-        snow_days = 0
-
-        # Loop through the data to aggregate information
-        for record in data:
-            if record["datatype"] == "TMAX":
-                avg_temp_max += record["value"]
-                count_temp_max += 1
-            elif record["datatype"] == "TMIN":
-                avg_temp_min += record["value"]
-                count_temp_min += 1
-            elif record["datatype"] == "PRCP":
-                total_precipitation += record["value"]
-                count_precipitation += 1
-            elif record["datatype"] == "SNOW":
-                count_snow += 1
-                if record["value"] > 0:
-                    snow_days += 1
-
-        # Safely calculate averages if there is data available
-        if count_temp_max > 0:
-            avg_temp_max /= count_temp_max
-        if count_temp_min > 0:
-            avg_temp_min /= count_temp_min
-        if count_precipitation > 0:
-            avg_precipitation = total_precipitation / count_precipitation
-        else:
-            avg_precipitation = 0
-
-        snow_probability = (snow_days / count_snow) * 100 if count_snow > 0 else 0
-
-        # Create prediction summary
-        prediction_summary = (
-            f"\nHistorical Weather Prediction for {city} on {month:02d}-{day:02d}:\n"
-            f"Average Maximum Temperature: {round((avg_temp_max * 9 / 5) + 32)}°F\n"
-            f"Average Minimum Temperature: {round((avg_temp_min * 9 / 5) + 32)}°F\n"
-            f"Average Precipitation: {avg_precipitation:.2f} mm\n"
-            f"Probability of Snow: {snow_probability:.2f}%"
-        )
-        # Use the main thread to show the weather summary in the GUI
-        self.root.after(0, lambda: self.show_weather_summary(prediction_summary))
-
+    # Rest of your methods here...
 
 # Run App
 try:
@@ -271,5 +210,3 @@ try:
     root.mainloop()
 except Exception as e:
     print(f"An error occurred: {e}")
-
-
