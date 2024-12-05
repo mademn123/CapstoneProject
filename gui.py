@@ -61,7 +61,7 @@ class WeatherWranglerApp:
     # Button styling function
     def styled_button(self, parent, text, command):
         button = Button(parent, text=text, command=command, font=("Arial", 12), width=30, height=2,
-                        bg="#4CAF50",  # Changed to the same shade of green as the main menu for consistency
+                        bg="#4CAF50",  # Green color for consistency
                         fg="white",    # White text for good contrast
                         relief="raised", bd=3,
                         activebackground="#45A049",  # Slightly darker green when pressed
@@ -71,11 +71,11 @@ class WeatherWranglerApp:
 
     # ============= Current Weather (OpenWeatherMap API) ============= #
     def current_weather(self):
-        weather_frame = Toplevel(self.root, bg="lightblue")
+        weather_frame = Toplevel(self.root, bg="#ADD8E6")  # Light blue background
         weather_frame.title("Current Weather")
         weather_frame.geometry("500x400")
 
-        Label(weather_frame, text="Enter City Name:", font=("Arial", 12, "bold"), bg="lightblue").pack(pady=10)
+        Label(weather_frame, text="Enter City Name:", font=("Arial", 12, "bold"), bg="#ADD8E6").pack(pady=10)
         self.city_entry = Entry(weather_frame, font=("Arial", 12))
         self.city_entry.pack(pady=5)
 
@@ -149,15 +149,15 @@ class WeatherWranglerApp:
 
     # ============= Historical Weather Predictions (NOAA API) ============= #
     def weather_probabilities(self):
-        prob_frame = Toplevel(self.root,  bg="#000080")
+        prob_frame = Toplevel(self.root,  bg="#ADD8E6")  # Light blue background
         prob_frame.title("Historical Weather Predictions")
         prob_frame.geometry("600x400")
 
-        Label(prob_frame, text="Enter City Name:", font=("Arial", 12, "bold"), bg="#000080", fg="white").pack(pady=5)
+        Label(prob_frame, text="Enter City Name:", font=("Arial", 12, "bold"), bg="#ADD8E6").pack(pady=5)
         self.region_entry = Entry(prob_frame, font=("Arial", 12))
         self.region_entry.pack(pady=5)
 
-        Label(prob_frame, text="Enter Date (MM-DD):", font=("Arial", 12, "bold"), bg="#000080", fg="white").pack(pady=5)
+        Label(prob_frame, text="Enter Date (MM-DD):", font=("Arial", 12, "bold"), bg="#ADD8E6").pack(pady=5)
         self.date_entry = Entry(prob_frame, font=("Arial", 12))
         self.date_entry.pack(pady=5)
 
@@ -165,12 +165,12 @@ class WeatherWranglerApp:
 
     # ============= Weather Pattern Visualization ============= #
     def weather_pattern_visualization(self):
-        pattern_frame = Toplevel(self.root, bg="#39d7bf")
+        pattern_frame = Toplevel(self.root, bg="#ADD8E6")  # Light blue background
         pattern_frame.title("Weather Pattern Visualization")
         pattern_frame.geometry("600x500")
 
         # Dropdown for weather pattern
-        Label(pattern_frame, text="Select Weather Pattern:", font=("Arial", 12, "bold"), bg="#39d7bf").pack(pady=10)
+        Label(pattern_frame, text="Select Weather Pattern:", font=("Arial", 12, "bold"), bg="#ADD8E6").pack(pady=10)
 
         # Only store the user-friendly names in the combobox
         self.pattern_combobox = Combobox(pattern_frame, values=[
@@ -179,11 +179,11 @@ class WeatherWranglerApp:
         self.pattern_combobox.pack(pady=5)
 
         # Date and City entries
-        Label(pattern_frame, text="Enter Date (MM-DD):", font=("Arial", 12, "bold"), bg="#39d7bf").pack(pady=10)
+        Label(pattern_frame, text="Enter Date (MM-DD):", font=("Arial", 12, "bold"), bg="#ADD8E6").pack(pady=10)
         self.date_entry_pattern = Entry(pattern_frame, font=("Arial", 12))
         self.date_entry_pattern.pack(pady=5)
 
-        Label(pattern_frame, text="Enter City:", font=("Arial", 12, "bold"), bg="#39d7bf").pack(pady=10)
+        Label(pattern_frame, text="Enter City:", font=("Arial", 12, "bold"), bg="#ADD8E6").pack(pady=10)
         self.city_entry_pattern = Entry(pattern_frame, font=("Arial", 12))
         self.city_entry_pattern.pack(pady=5)
 
