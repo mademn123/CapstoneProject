@@ -19,7 +19,11 @@ NOAA_API_TOKEN = API_KEY2
 
 class WeatherWranglerApp:
     def __init__(self, root):
-        '''Nihitha worked on this function. The purpose of this function is to initialize the class with variables used in the other functions.'''
+        '''Nihitha worked on this function. The purpose of this function is to initialize the class with variables 
+        used in the other functions.
+        :param values: self = current instance of Weather wrangler class, root = the main Tkinter window
+        :return: none
+        '''
         self.root = root
         self.root.title("Weather Wrangler App")
         self.root.geometry("800x600")
@@ -30,7 +34,10 @@ class WeatherWranglerApp:
     def create_main_menu(self):
         '''Akhil worked on this function. The purpose of this function is to create and design the main menu window
         so that it would have the necessary buttons and colors. It also includes an animated cloud to add a visually
-        appleasing aspect to the program'''
+        appleasing aspect to the program
+        :param values: self = current instance of Weather wrangler class
+        :return: none
+        '''
         menu_frame = Frame(self.root, bg="#87CEEB", bd=5, relief="solid")
         menu_frame.pack(pady=10, padx=10, fill="both", expand=True)
 
@@ -67,7 +74,11 @@ class WeatherWranglerApp:
     # Button styling function
     def styled_button(self, parent, text, command):
         '''Akhil worked on this function. The purpose of this function is to create a standard for the visual aesthetic 
-        of the button.'''
+        of the button.
+        :param values: self = current instance of Weather wrangler class, parent = widget where button is placed, 
+        text = string containing text for the button, command = function to be executed when button is clicked
+        :return: none but adds styled button to window
+        '''
         button = Button(parent, text=text, command=command, font=("Arial", 12), width=30, height=2,
                         bg="#4CAF50",  # Green background for consistency
                         fg="white",    # White text for good contrast
@@ -80,7 +91,10 @@ class WeatherWranglerApp:
     # ============= Current Weather (OpenWeatherMap API) ============= #
     def current_weather(self):
         '''Kaylee worked on this function. The purpose of this function is to create a secondary window for the
-        first button to allow for the user to input a city name to see the current weather in that city.'''
+        first button to allow for the user to input a city name to see the current weather in that city.
+        :param values: self = current instance of Weather wrangler class
+        :return: none
+        '''
         weather_frame = Toplevel(self.root, bg="#ADD8E6")  # Light blue background
         weather_frame.title("Current Weather")
         weather_frame.geometry("500x400")
@@ -93,7 +107,10 @@ class WeatherWranglerApp:
 
     def display_weather(self):
         '''Kaylee worked on this function. This function uses the data that we fetched from the OpenWeatherMap API
-        in order to display the city name, current temperature, the forecast, and the percentage of humidity.'''
+        in order to display the city name, current temperature, the forecast, and the percentage of humidity.
+        :param values: self = current instance of Weather wrangler class
+        :return: none
+        '''
         city = self.city_entry.get()
         weather_data = self.fetch_openweather_data(city)
         if weather_data:
@@ -114,7 +131,10 @@ class WeatherWranglerApp:
 
     def fetch_openweather_data(self, city):
         '''Kaylee worked on this function. The purpose of this function is to extract the data from the API to use to
-        display the current weather of a city specified by the user'''
+        display the current weather of a city specified by the user
+        :param values: self = current instance of Weather wrangler class, city = string of user inputted city name
+        :return: dictionary containing weather data from API
+        '''
         api_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric"
         response = requests.get(api_url)
         if response.status_code == 200:
@@ -125,7 +145,10 @@ class WeatherWranglerApp:
 
     def show_weather_summary(self, summary):
         '''Akhil worked on this function. This formats all the result windows so that they would have a dark blue
-        background, yellow font, and a close button.'''
+        background, yellow font, and a close button.
+        :param values: self = current instance of Weather wrangler class, summary = string summarizing weather information
+        :return: none
+        '''
         # Create the new window
         summary_window = Toplevel(self.root)
         summary_window.title("Weather Summary")
@@ -166,7 +189,10 @@ class WeatherWranglerApp:
     # ============= Historical Weather Predictions (NOAA API) ============= #
     def weather_probabilities(self):
         '''Nihitha worked on this function. This function formats the secondary window for the second button
-        and asks for user input for a city and a date and includes a button'''
+        and asks for user input for a city and a date and includes a button
+        :param values: self = current instance of Weather wrangler class
+        :return: none
+        '''
         prob_frame = Toplevel(self.root,  bg="#ADD8E6")  # Light blue background
         prob_frame.title("Historical Weather Predictions")
         prob_frame.geometry("600x400")
@@ -183,13 +209,19 @@ class WeatherWranglerApp:
 
     def start_thread(self):
         '''Nihitha worked on this function. The purpose of this function is to use threading so that the GUI
-        won't stop responding while trying to fetch the data from the API'''
+        won't stop responding while trying to fetch the data from the API
+        :param values: self = current instance of Weather wrangler class
+        :return: none
+        '''
         # Start a new thread for fetching NOAA data to avoid blocking the GUI
         threading.Thread(target=self.display_weather_probabilities, daemon=True).start()
 
     def display_weather_probabilities(self):
         '''Nihitha worked on this function. This function interprets the date entered so that the date can be
-        used in later functions for calculations. It also uses another function to get the coordinates of the city'''
+        used in later functions for calculations. It also uses another function to get the coordinates of the city
+        :param values: self = current instance of Weather wrangler class
+        :return: none
+        '''
         city = self.region_entry.get()
         date = self.date_entry.get()
 
@@ -220,7 +252,10 @@ class WeatherWranglerApp:
     def lookup_location_id(self, city):
         '''Nihitha worked on this function. This function looks up the latitude and longitude coordinates of the city
         using the OpenWeatherMap API entered so that we can fetch the NOAA data from the API since it requires
-        coordinates for the location.'''
+        coordinates for the location.
+        :param values: self = current instance of Weather wrangler class, city = string of city name
+        :return: tuple of latitude and longitude if the city is found
+        '''
         # Use OpenWeatherMap to get latitude and longitude of the city
         weather_data = self.fetch_openweather_data(city)
         if not weather_data:
@@ -233,7 +268,12 @@ class WeatherWranglerApp:
 
     def fetch_and_process_historical_data(self, lat, lon, city, month, day):
         '''Nihitha worked on this function. The purpose of this function is to call the function that fetches NOAA
-        data to apply to the user inputted city and date.'''
+        data to apply to the user inputted city and date.
+        :param values: self = current instance of Weather wrangler class, lat = float of latitude of city, 
+        lon = float of longitude of city, city = string of city name, month = integer of month part of date, 
+        day = integer of day part of the date
+        :return: none
+        '''
         # Fetch NOAA historical data
         data = self.fetch_noaa_historical_data(lat, lon, month, day)
         if data:
@@ -243,7 +283,11 @@ class WeatherWranglerApp:
 
     def fetch_noaa_historical_data(self, lat, lon, month, day):
         '''Nihitha worked on this function. The purpose of this function is to get the data from the NOAA API for the
-        past ten years so that we can perform calculations on it'''
+        past ten years so that we can perform calculations on it
+        :param values: self = current instance of Weather wrangler class, lat = float of latitude of city, 
+        lon = float of longitude of city, month = integer of month part of date, day = integer of day part of the date 
+        :return: list of historical weather data dictionaries
+        '''
         # NOAA API endpoint
         endpoint = "https://www.ncei.noaa.gov/cdo-web/api/v2/data"
         headers = {"token": NOAA_API_TOKEN}
@@ -281,7 +325,10 @@ class WeatherWranglerApp:
     def process_historical_data(self, data, city, month, day):
         '''Nihitha worked on this function. The purpose of this function is to perform calculations on the data we fetched
         from the API so that we can get the average of different temperatures/weather types so the user can see what the
-        weather is approximately like in a city during that time of year.'''
+        weather is approximately like in a city during that time of year.
+        :param values: self = current instance of Weather wrangler class, data = list of NOAA weather data dictionaries, city = string of city name, month = integer of month part of date, day = integer of day part of date
+        :return: none
+        '''
         # Initialize counters and sums for each data type
         total_records = len(data)
         if total_records == 0:
@@ -335,7 +382,10 @@ class WeatherWranglerApp:
 
     def weather_pattern_visualization(self):
         '''Angel worked on this function. The purpose of this function is to create the seconday window for the third
-        button so that the user can choose a weather type from a dropdown menu, enter a date, and enter a city name.'''
+        button so that the user can choose a weather type from a dropdown menu, enter a date, and enter a city name.
+        :param values: self = current instance of Weather wrangler class
+        :return: none
+        '''
         pattern_frame = Toplevel(self.root, bg="#ADD8E6")  # Light blue background
         pattern_frame.title("Weather Pattern Visualization")
         pattern_frame.geometry("600x500")
@@ -362,14 +412,20 @@ class WeatherWranglerApp:
 
     def start_pattern_thread(self):
         '''Angel worked on this function. This starts a thread so that the GUI won't stop responding due to the data
-        being fetched from the API'''
+        being fetched from the API
+        :param values: self = current instance of Weather wrangler class
+        :return: none
+        '''
         # Start a new thread for fetching NOAA data to avoid blocking the GUI
         threading.Thread(target=self.fetch_weather_pattern_data, daemon=True).start()
 
     def fetch_weather_pattern_data(self):
         '''Angel worked on this function. The purpose of this function is to fetch and process the weather data obtained
         from the NOAA API for the inputted city, date, and weather pattern. It ensures that all the information inputted
-        by the user is valid'''
+        by the user is valid
+        :param values: self = current instance of Weather wrangler class
+        :return: none
+        '''
         date = self.date_entry_pattern.get().strip()
         city = self.city_entry_pattern.get().strip()
 
@@ -449,7 +505,10 @@ class WeatherWranglerApp:
 
     def plot_weather_pattern(self, data, pattern):
         '''Angel worked on this function. The purpose of this function is to plot the data for the user specified
-        information.'''
+        information.
+        :param values: self = current instance of Weather wrangler class, data = list of NOAA weather data dictionaries, pattern = string of selected weather pattern code
+        :return: none
+        '''
         # Check if data is available
         if not data:
             messagebox.showerror("Data Error", "No data available for the selected pattern.")
